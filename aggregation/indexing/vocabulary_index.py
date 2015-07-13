@@ -10,6 +10,7 @@ __status__ = "Production"
 import pymongo
 from time import time
 
+
 mapFunction = """function() {
                     for (var idx=0; idx<this.words.length; idx++){
                         var key = this.words[idx].word;
