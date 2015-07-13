@@ -9,7 +9,7 @@ __status__ = "Production"
 
 import pymongo
 from ne_index import NEIndex
-from vocabulary_index import VocabularyIndex
+from vocabulary_index_new import VocabularyIndex
 
 class Queries:
     def __init__(self, dbname):
@@ -18,44 +18,53 @@ class Queries:
         self.db = client[self.dbname]
 
     def countDocuments(self, query=None):
-        if query:
-            return self.db.documents.find(query).count()
-        else:
-            return self.db.documents.find().count()
+        return self.db.documents.find(query).count()
 
-    def getWords(self, query=False, limit=150):
-        if query:
-            return self.db.vocabulary_query.find(fields={'word':1,'idf':1},limit=limit, sort=[('idf',pymongo.ASCENDING)])
+    def getOneWord(self, query=None, fields=None, existing=False):
+        if existing:
+            return self.db.vocabulary_query.find_one(spec_or_id=query, fields=fields)
         else:
-            return self.db.vocabulary.find(fields={'word':1,'idf':1},limit=limit, sort=[('idf',pymongo.ASCENDING)])
+            return self.db.vocabulary.find_one(spec_or_id=query, fields=fields)
 
-    def getNamedEntities(self, query=None, limit=None):
+    def getWords(self, query=None, fields=None, limit=0, existing=False):
+        if existing:
+            return self.db.vocabulary_query.find(spec=query, fields=fields, limit=limit, sort=[('idf',pymongo.ASCENDING)])
+        else:
+            return self.db.vocabulary.find(spec=query, fields=fields, limit=limit, sort=[('idf',pymongo.ASCENDING)])
+
+    def getNamedEntities(self, query=None, limit=0):
         if query:
             # if there is a query then we construct a smaller NE_INDEX
             query_ner = {'namedEntities': {'$exists': 'true'}}
             query_ner.update(query)
-            ne = NEIndex(dbname)
-            ne.createIndex(query_ner)
-            if limit:
-                return self.db.named_entities_query.find(sort=[('count',pymongo.DESCENDING)], limit=limit)
-            else:
-                return self.db.named_entities_query.find(sort=[('count',pymongo.DESCENDING)])
+            self.constructNamedEntities(query=query_ner)
+            return self.db.named_entities_query.find(sort=[('count',pymongo.DESCENDING)], limit=limit)
         else:
             # use the already build NE_INDEX
-            if limit:
-                return self.db.named_entities.find(sort=[('count',pymongo.DESCENDING)], limit=limit)
-            else:
-                return self.db.named_entities.find(sort=[('count',pymongo.DESCENDING)])
+            return self.db.named_entities.find(sort=[('count',pymongo.DESCENDING)], limit=limit)
 
     def constructVocabulary(self, query=None):
         vocab = VocabularyIndex(self.dbname)
-        if query:
-            vocab.createIndex(query)
-        else:
-            vocab.createIndex()
+        vocab.createIndex(query)
+
+    def constructNamedEntities(self, query=None):
+        ner = NEIndex(self.dbname)
+        ner.createIndex(query)
+
+    def getDocuments(self, query=None, fields=None):
+        return self.db.documents.find(spec=query, fields=fields)
+
+    def getOneDocument(self, query=None, fields=None):
+        return self.db.documents.find_one(spec_or_id=query, fields=fields)
+
 
     def bulkInsert(self, documents):
         try:
             self.db.documents.insert(documents, continue_on_error=True)
         except pymongo.errors.DuplicateKeyError:
             pass
+
+if __name__ == "__main__":
+    queries = Queries('TwitterDB')
+    x = queries.getOneWord(query={'word': 'fuck'}, fields={'IDF': 1}, existing=False)['IDF']
+    print x

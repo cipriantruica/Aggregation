@@ -11,10 +11,7 @@ import time
 import utils
 from ddl_mongo_lang import *
 from models.mongo_models import *
-from indexing.vocabulary_index import VocabularyIndex as VI
-from indexing.ne_index import NEIndex as NE
-from multiprocessing import cpu_count
-from concurrent.futures import ThreadPoolExecutor
+from indexing.queries import Queries
 
 
 def populateDB(filename, csv_delimiter, header, language='EN', dbname='TwitterDB', mode=0):
@@ -26,18 +23,17 @@ def populateDB(filename, csv_delimiter, header, language='EN', dbname='TwitterDB
 
 def constructIndexes(dbname):
     #build Vocabulary
+    queries = Queries(dbname=dbname)
     start = time.time()
-    vocab = VI(dbname)
-    vocab.createIndex()
+    queries.constructVocabulary()
     end = time.time()
     print "vocabulary_build.append(", (end - start) , ")"
 
     # built the NE Index
     start = time.time()
-    ner = NE(dbname)
-    ner.createIndex()
+    queries.constructNamedEntities()
     end = time.time()
-    print "ner_build.append(", (end - start) , ")"
+    print "ne_build.append(", (end - start) , ")"
 
 
 def main(filename, csv_delimiter = '\t', header = True, dbname = 'TwitterDB', language='EN', initialize = 0, mode=0):
